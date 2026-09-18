@@ -1,10 +1,11 @@
+import sys
 import os
 import json
-import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from validation import validate_response
 
 def main():
-    cases_dir = "test/cases"
+    cases_dir = os.path.join(os.path.dirname(__file__), "cases")
     if not os.path.isdir(cases_dir):
         print(f"Error: {cases_dir} directory not found.")
         sys.exit(1)
