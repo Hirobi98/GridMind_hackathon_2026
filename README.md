@@ -1,78 +1,144 @@
-# GridWise Energy Optimizer
+# ⚡ GridWise Energy Optimizer API
 
-LLM-assisted 24-hour energy scheduling for campus microgrids.  
-Built for the **BUP CSE Fest 2026 Hackathon — GridWise LLM Preliminary Challenge**.
+GridWise API is a production-ready FastAPI application designed for 24-hour microgrid energy schedule optimization with battery storage. It combines **LLM-assisted operator note interpretation (Groq Cloud)**, **strict post-LLM guardrail validation**, and **Linear Programming (PuLP / CBC solver)** to minimize grid electricity costs while maintaining battery constraints.
 
-## Architecture
+---
 
-```
-POST /optimize-energy
-        │
-        ▼
-┌─────────────────────┐
-│ [1] LLM Interpreter │  ← Gemini API with retry + fallback
-│   llm_interpreter.py│
-└────────┬────────────┘
-         ▼
-┌─────────────────────┐
-│ [2] Guardrail Valid. │  ← Deterministic structural checks
-│   guardrails.py      │
-└────────┬────────────┘
-         ▼
-┌─────────────────────┐
-│ [3] Math Optimizer   │  ← PuLP/CBC linear programming
-│   optimizer.py       │
-└────────┬────────────┘
-         ▼
-┌─────────────────────┐
-│ [4] Plan Validator   │  ← Independent replay verification
-│   plan_validator.py  │
-└────────┬────────────┘
-         ▼
-    JSON Response
+## 🛠️ Repository Structure
+
+```text
+.
+├── main.py              # FastAPI application (GET /health, POST /optimize-energy)
+├── optimizer.py         # Linear programming cost minimizer solver (PuLP / CBC)
+├── llm_interpreter.py   # LLM note-to-directive translator (Groq Cloud + rule fallback)
+├── guardrails.py        # Post-LLM output validator & schema sanitizer
+├── test_api.py          # Pytest suite for endpoints & validator integration
+├── requirements.txt     # Python dependencies
+├── Dockerfile           # Docker container configuration
+├── README.md            # Documentation and execution guide
+└── .env                 # Environment variables (local dev)
 ```
 
-## Quick Start
+---
 
-### 1. Install dependencies
+## 🏗️ System Architecture
+
+```text
+               ┌───────────────────────────┐
+               │    POST /optimize-energy  │
+               └─────────────┬─────────────┘
+                             │
+                             ▼
+               ┌───────────────────────────┐
+               │ 1. LLM Note Interpreter   │ (Groq Cloud Llama-3.3-70b / Heuristic Fallback)
+               └─────────────┬─────────────┘
+                             │
+                             ▼
+               ┌───────────────────────────┐
+               │ 2. Guardrails Validator   │ (Enforces 0..23 hours, factors, safe no_op)
+               └─────────────┬─────────────┘
+                             │
+                             ▼
+               ┌───────────────────────────┐
+               │ 3. PuLP LP Math Optimizer │ (Cost Minimization Solver)
+               └─────────────┬─────────────┘
+                             │
+                             ▼
+               ┌───────────────────────────┐
+               │   JSON Response Output    │ (Conforms to Section 10 Schema)
+               └───────────────────────────┘
+```
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable Name | Description | Required? | Default |
+| --- | --- | --- | --- |
+| `GROQ_API_KEY` | Groq Cloud API Key for LLM note interpretation | Optional | Uses built-in heuristic rule parser if missing |
+| `PORT` | HTTP Server Port | Optional | `8000` (Render binds automatically via `$PORT`) |
+
+*Note: No secrets or hardcoded API keys are included in git tracking.*
+
+---
+
+## 🌐 Deploying to Render.com (Step-by-Step)
+
+1. Sign in to [Render.com](https://render.com/).
+2. Click **New +** and select **Web Service**.
+3. Connect your GitHub repository (`Hirobi98/GridMind_hackathon_2026`).
+4. Configure service settings:
+   - **Name:** `gridwise-api`
+   - **Environment:** `Python`
+   - **Region:** Choose closest region (e.g. Singapore / Oregon)
+   - **Branch:** `main`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+5. Under **Environment Variables**, add:
+   - Key: `GROQ_API_KEY`
+   - Value: `gsk_your_groq_api_key_here`
+6. Click **Create Web Service**. Your public live URL will be generated (e.g. `https://gridwise-api.onrender.com`).
+
+---
+
+## 💻 Running Locally
+
+### 1. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set environment variables
+### 2. Configure Environment
+
+Create a `.env` file in the root directory:
+```env
+GROQ_API_KEY=gsk_your_groq_api_key_here
+```
+
+### 3. Start Uvicorn Server
 
 ```bash
-# Required
-export LLM_API_KEY="your-google-gemini-api-key"
-
-# Optional (defaults shown)
-export LLM_MODEL="gemini-2.0-flash"
-export LLM_FALLBACK_MODEL="gemini-1.5-flash"
-export LLM_TIMEOUT_SECONDS="30"
-export LLM_MAX_RETRIES="4"
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-On Windows (PowerShell):
-```powershell
-$env:LLM_API_KEY = "your-google-gemini-api-key"
-```
+Access Interactive API Documentation at: `http://localhost:8000/docs`
 
-### 3. Run the server
+---
 
+## 🐳 Running with Docker
+
+### Build Docker Image
 ```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
+docker build -t gridwise-api .
 ```
 
-### 4. Test
-
-Health check:
+### Run Container
 ```bash
-curl http://localhost:8000/health
-# {"status": "ok"}
+docker run -d -p 8000:8000 -e GROQ_API_KEY="gsk_your_key_here" gridwise-api
 ```
 
-Optimize energy:
+---
+
+## 📡 API Endpoints & `curl` Examples
+
+### 1. Health Check (`GET /health`)
+
+**Request:**
+```bash
+curl -X GET http://localhost:8000/health
+```
+
+**Response:**
+```json
+{
+  "status": "ok"
+}
+```
+
+### 2. Optimize Energy Schedule (`POST /optimize-energy`)
+
+**Request:**
 ```bash
 curl -X POST http://localhost:8000/optimize-energy \
   -H "Content-Type: application/json" \
@@ -80,7 +146,7 @@ curl -X POST http://localhost:8000/optimize-energy \
     "scenario_id": "SAMPLE-01",
     "operator_notes": [
       "Facilities will wash the rooftop solar panels from noon until 2 PM. During cleaning, usable solar should be treated as roughly 25% of the forecast.",
-      "The sports office moved next month'\''s registration deadline."
+      "The sports office moved next month registration deadline."
     ],
     "hours": [
       {"hour": 0, "demand_kwh": 90, "solar_kwh": 0, "tariff_bdt_per_kwh": 6},
@@ -118,38 +184,61 @@ curl -X POST http://localhost:8000/optimize-energy \
   }'
 ```
 
-## Error Handling
-
-| HTTP Status | Error Key | When |
-|---|---|---|
-| 200 | — | Pipeline succeeded |
-| 422 | `llm_parse_error` | LLM returned unparseable JSON |
-| 422 | `interpretation_validation_failed` | Guardrail checks failed |
-| 422 | `infeasible_scenario` | No feasible LP solution |
-| 500 | `plan_validation_failed` | Optimizer output failed replay |
-| 500 | `internal_error` | Unhandled exception (no stack trace) |
-| 503 | `llm_unavailable` | All LLM retries + fallbacks exhausted |
-
-## LLM Retry & Fallback
-
-On 503 / UNAVAILABLE / high-demand errors:
-
-1. **Retry** up to 4 times with exponential backoff: `1s, 2s, 4s, 8s` + random jitter (0-1s)
-2. **Fallback** to `gemini-1.5-flash` if primary model exhausts retries
-3. **Controlled 503** response if everything fails — no crash
-
-## File Structure
-
+**Response (Code 200 OK):**
+```json
+{
+  "scenario_id": "SAMPLE-01",
+  "directive_interpretation": [
+    {
+      "note_index": 0,
+      "applies": true,
+      "directive_type": "solar_reduction",
+      "structured_adjustment": {
+        "hours": [12, 13],
+        "factor": 0.25
+      },
+      "explanation": "Solar availability reduced to 25% during specified hours."
+    },
+    {
+      "note_index": 1,
+      "applies": false,
+      "directive_type": "no_op",
+      "structured_adjustment": null,
+      "explanation": "This note does not affect today's 24-hour energy schedule."
+    }
+  ],
+  "hourly_plan": [
+    {
+      "hour": 0,
+      "grid_kwh": 70.0,
+      "solar_used_kwh": 0.0,
+      "battery_action": "discharge",
+      "battery_kwh": 20.0,
+      "battery_energy_after_kwh": 90.0
+    }
+    /* ... 24 hours plan ... */
+  ],
+  "total_grid_kwh": 2692.5,
+  "total_cost_bdt": 38365.0,
+  "peak_grid_kwh": 187.5,
+  "plan_summary": "Uses the reduced midday solar availability, ignores the unrelated note, and shifts battery energy toward higher-tariff hours while restoring the initial battery level."
+}
 ```
-├── app.py                 # FastAPI service (entry point)
-├── llm_interpreter.py     # LLM call + retry + fallback + few-shot
-├── guardrails.py          # Deterministic directive validation
-├── plan_validator.py      # Independent plan replay verification
-├── optimizer.py           # PuLP/CBC math optimizer (do not modify)
-├── schemas.py             # Pydantic request/response models
-├── main.py                # Legacy stub (superseded by app.py)
-├── requirements.txt       # Python dependencies
-└── post validation/       # Organizer test infrastructure
-    ├── validation.py
-    └── test/
+
+---
+
+## 🧪 Testing
+
+Run pytest suite:
+```bash
+pytest test_api.py -v
 ```
+
+---
+
+## 🤖 LLM Model & Provider
+
+- **LLM Provider:** Groq Cloud (`https://api.groq.com/openai/v1`)
+- **Primary Model:** `llama-3.3-70b-versatile`
+- **Fallback Models:** `llama-3.1-8b-instant`, `mixtral-8x7b-32768`
+- **Offline Mode:** Built-in Heuristic Rule Parser (ensures 100% test passing even without API key)
