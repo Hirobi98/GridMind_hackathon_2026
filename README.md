@@ -106,17 +106,7 @@ Access Interactive API Documentation at: `http://localhost:8000/docs`
 
 ---
 
-## 🐳 Running with Docker
 
-### Build Docker Image
-```bash
-docker build -t gridwise-api .
-```
-
-### Run Container
-```bash
-docker run -d -p 8000:8000 -e GROQ_API_KEY="gsk_your_key_here" gridwise-api
-```
 
 ---
 
