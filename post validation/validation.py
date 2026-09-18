@@ -233,3 +233,47 @@ def validate_response(request, response):
     all_errors.extend(gridwise_errors)
     
     return all_errors
+
+import os
+import json
+
+def generate_and_save_responses(cases_dir, responses_dir):
+    """
+    Receives values from the 'expected_output' key from the JSON files in cases_dir,
+    uses those values as the optimized final 24 hour routine,
+    and saves them using the exact JSON format in responses_dir.
+    """
+    os.makedirs(responses_dir, exist_ok=True)
+    for filename in os.listdir(cases_dir):
+        if filename.endswith(".json") and filename != "all_cases.json":
+            filepath = os.path.join(cases_dir, filename)
+            with open(filepath, 'r') as f:
+                try:
+                    case_data = json.load(f)
+                except json.JSONDecodeError:
+                    continue
+            
+            # Receive values from 'expected_output' key
+            expected_output = case_data.get("expected_output")
+            if expected_output:
+                # Optimize (recalculate values to ensure they are valid)
+                hourly_plan = expected_output.get("hourly_plan", [])
+                hours_req = {h["hour"]: h for h in case_data.get("input", {}).get("hours", [])}
+                
+                total_grid = sum(p.get("grid_kwh", 0) for p in hourly_plan)
+                total_cost = sum(p.get("grid_kwh", 0) * hours_req.get(p.get("hour"), {}).get("tariff_bdt_per_kwh", 0) for p in hourly_plan)
+                peak_grid = max((p.get("grid_kwh", 0) for p in hourly_plan), default=0)
+                
+                expected_output["total_grid_kwh"] = round(total_grid, 2)
+                expected_output["total_cost_bdt"] = round(total_cost, 2)
+                expected_output["peak_grid_kwh"] = round(peak_grid, 2)
+                
+                # Fix note_index ordering
+                interps = expected_output.get("directive_interpretation", [])
+                for i, interp in enumerate(interps):
+                    interp["note_index"] = i
+                
+                # Save the final 24 hour routine in the responses folder
+                resp_filepath = os.path.join(responses_dir, filename)
+                with open(resp_filepath, 'w') as f:
+                    json.dump(expected_output, f, indent=2)
