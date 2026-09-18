@@ -62,22 +62,6 @@ GridWise API is a production-ready FastAPI application designed for 24-hour micr
 
 ---
 
-## 🌐 Deploying to Render.com (Step-by-Step)
-
-1. Sign in to [Render.com](https://render.com/).
-2. Click **New +** and select **Web Service**.
-3. Connect your GitHub repository (`Hirobi98/GridMind_hackathon_2026`).
-4. Configure service settings:
-   - **Name:** `gridwise-api`
-   - **Environment:** `Python`
-   - **Region:** Choose closest region (e.g. Singapore / Oregon)
-   - **Branch:** `main`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Under **Environment Variables**, add:
-   - Key: `GROQ_API_KEY`
-   - Value: `gsk_your_groq_api_key_here`
-6. Click **Create Web Service**. Your public live URL will be generated (e.g. `https://gridwise-api.onrender.com`).
 
 ---
 
@@ -99,7 +83,7 @@ GROQ_API_KEY=gsk_your_groq_api_key_here
 ### 3. Start Uvicorn Server
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app--reload
 ```
 
 Access Interactive API Documentation at: `http://localhost:8000/docs`
