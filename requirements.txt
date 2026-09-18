@@ -1,3 +1,8 @@
 fastapi
 uvicorn[standard]
 pydantic
+pulp
+google-genai
+google-generativeai
+pytest
+httpx
